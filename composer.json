@@ -1,0 +1,37 @@
+{
+  "name": "radsectors/urp",
+  "description": "PHP debugging. I like it. #ymmv.",
+  "keywords": ["debug", "var_dump", "print_r", "__debugInfo"],
+  "homepage": "https://github.com/radsectors/urp",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Marc Hester",
+      "email": "marc@radsectors.com",
+      "homepage": "https://github.com/maercoftheshire",
+      "role": "Developer"
+    }
+  ],
+  "support": {
+    "email": "marc@radsectors.com"
+  },
+  "require": {
+    "php" : ">=5.4.0"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "suggest": {
+
+  },
+  "autoload": {
+    "psr-4": {
+      "radsectors\\": "src"
+    },
+    "files": ["src/legacy.php"]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "radsectors\\test\\": "tests"
+    }
+  }
+}
