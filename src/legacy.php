@@ -1,7 +1,6 @@
 <?php
+namespace {
 
-namespace
-{
     if (!function_exists('pq')) {
         function pq()
         {
