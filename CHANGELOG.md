@@ -11,7 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - memory limit hack
 
 
-## [0.1.1] - 2017-05-11
+## [0.2.0] - 2017-05-11
 ### Added
 - iterating variable parser.
 ### Changed
@@ -20,7 +20,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.1.0] - 2016-09-23
 ### Added
-- First Release... beta, I guess?
+- First release.
 
 [unreleased]: https://github.com/radsectors/urp/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/radsectors/urp/compare/v0.1.0...v0.2.0
