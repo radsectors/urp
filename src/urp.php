@@ -216,11 +216,9 @@ final class urp
     private function invade($obj)
     {
         $arr = [];
-        $ref = new \ReflectionClass($obj);
-
-        foreach ((array)$obj as $name => $val) {
-            if ($ref->hasProperty($name)) {
-                $prop = $ref->getProperty($name);
+        $ref = new \ReflectionObject($obj);
+        if ($props = $ref->getProperties()) {
+            foreach ($props as $prop) {
                 if ($prop->isStatic() && !self::$stat) continue;
 
                 $name = $prop->getName();
@@ -228,9 +226,13 @@ final class urp
                 $static = $prop->isStatic() ? 'text-decoration:underline;' : '';
                 self::$do_html && $name = "<span style=\"color:darkgreen;$static\">$name</span>";
                 $arr["$mods$name"] = $prop->getValue($obj);
-            } else {
+            }
+        } else {
+            $props = (array)$obj;
+            if (!empty($props)) pq("let @radsectors know if you ever see this", $thing);
+            foreach ($props as $name => $val) {
                 self::$do_html && $name = "<span style=\"color:darkgreen\">$name</span>";
-                $arr["~$name"] = $val;
+                $arr["+$name"] = $val;
             }
         }
 
@@ -253,11 +255,11 @@ final class urp
 
     private function getmodstr(&$thing)
     {
+        if (!$thing->isDefault()) return '~';
         $mods = '';
         $thing->isPublic() && $mods .= '+';
         $thing->isPrivate() && $mods .= '-';
         $thing->isProtected() && $mods .= '#';
-        !$thing->isDefault() && $mods .= '~';
         !$thing->isPublic() && $thing->setAccessible(true);
 
         return $mods;
