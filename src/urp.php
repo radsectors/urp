@@ -7,9 +7,13 @@ final class urp
     private $obj = [];
     private $arr = [];
 
+    private $inst = true;
+
     private static $do_html;
     private static $do_css;
     private static $do_ob;
+    private static $stat;
+    private static $meth;
 
     private static $template = [];
 
@@ -40,6 +44,8 @@ final class urp
     }
 
     private static $pr = [
+        '#<#' => '&lt;',
+        '#>#' => '&gt;',
         '#^(https?://|//?)(.+)$#' => '<a href="$1$2">$1$2</a>', // convert URLs HTML links
     ];
 
@@ -47,9 +53,11 @@ final class urp
     {
         $limit = ini_set('memory_limit', -1); // temporarily raise memory_limit
         !isset(self::$do_html) && self::$do_html = (php_sapi_name() !== 'cli');
-        !isset(self::$do_ob) && $do_ob = false;
+        !isset(self::$do_ob) && self::$do_ob = false;
+        self::$stat = (stripos($name, 'stat') !== false);
+        self::$meth = (stripos($name, 'meth') !== false);
 
-        $do_ob && ob_start(); // capture output
+        self::$do_ob && ob_start(); // capture output
 
         self::$do_html && print '<pre>';
 
@@ -58,7 +66,7 @@ final class urp
         $bti = (int) (isset($bt[1]['function']) && in_array($bt[1]['function'], ['pq', 'pqd', ]));
         $fil = $bt[$bti]['file'];
         $lin = $bt[$bti]['line'];
-        unset($bt);
+        unset($bt, $bti);
 
         self::$do_html && $name = "<strong>$name</strong>";
         self::$do_html && $lin = "<strong>$lin</strong>";
@@ -74,7 +82,7 @@ final class urp
         unset($args); // free up memory.
         self::$do_html && print '</pre>';
 
-        $do_ob && print ob_get_clean();
+        self::$do_ob && print ob_get_clean();
 
         if ($limit) ini_set('memory_limit', $limit); // restore memory_limit
     }
@@ -82,6 +90,7 @@ final class urp
     private function digest($thing)
     {
         $typ = gettype($thing);
+        is_callable($thing) && $typ = 'function';
         $len = $tag = $hsh = '';
 
         switch($typ) {
@@ -143,7 +152,37 @@ final class urp
                 $restyp = get_resource_type($thing);
                 $tag = " of type ($restyp)";
                 break;
+            case 'function':
+                $meth = $thing();
+                self::$do_html && $typ = "<span style=\"color:orange;\">$typ</span>";
+                $len = '';
+                $opts = 0;
+                foreach ($meth->getParameters() as $i => $par) {
+                    $par->isOptional() && $opts++;
+                    $par->com = $i > 0 ? ',' : '';
+                    $par->opl = $par->isOptional() ? " [$par->com " : "$par->com ";
+                    $par->typ = $par->hasType() ? $par->getType().' ' : '';
+                    $par->ref = $par->isPassedByReference() ? '&' : '';
+                    $par->nam = "\$$par->name";
+                    $par->def = '';
+                    if ($par->isDefaultValueAvailable()) {
+                        $par->val = $par->getDefaultValue();
+                        $par->val = is_bool($par->val) ? boolval($par->val) ? 'true' : 'false' : $par->val;
+                        $par->str = is_string($par->val);
+                        $par->val = is_scalar($par->val) ? $par->val : gettype($par->val);
+                        $par->str && $par->val = "'$par->val'";
+                        $par->def = " = $par->val";
+                    }
+                    $par->opr = $par->isOptional() && $i == 0 ? ' ]' : '';
+
+                    $len .= "$par->opl$par->typ$par->ref$par->nam$par->def";
+                }
+                $len .= str_repeat(' ]', $opts).' ';
+                unset($par);
+                $meth->hasReturnType() && $tag = ' : '.$meth->getReturnType();
+                break;
             case 'unknown type':
+                pq("let @radsectors know if you ever see this", $thing);
             default:
                 break;
         }
@@ -158,8 +197,10 @@ final class urp
             $this->lvl++;
             foreach ($thing as $name => $t) {
                 !self::$do_html && is_numeric($name) && is_string() && $name = "'$name'";
-                self::$do_html && is_string($name) && $name = "<span style=\"color:darkgreen;\">$name</span>";
-                self::$do_html && !is_string($name) && $name = "<span style=\"color:red;\">$name</span>";
+                if (self::$do_html && strpos($typ, 'array') !== false) {
+                    $color = is_string($name) ? 'darkgreen' : 'red';
+                    $name = "<span style=\"color:$color;\">$name</span>";
+                }
                 print "$pad  [$name] => ";
                 self::digest($t);
             }
@@ -176,31 +217,50 @@ final class urp
     {
         $arr = [];
         $ref = new \ReflectionClass($obj);
-        $filter = \ReflectionProperty::IS_PUBLIC | \ReflectionProperty::IS_PROTECTED | \ReflectionProperty::IS_PRIVATE;
-        if ($props = $ref->getProperties($filter)) {
-            foreach ($props as $prop) {
-                if (!$prop->isStatic()) {
-                    $name = $prop->getName();
-                    self::$do_html && $name = "<span style=\"color:darkgreen\">$name</span>";
-                    $mods = '';
-                    if (!$prop->isDefault()) $mods .= '~';
-                    if ($prop->isPublic()) $mods .= '+';
-                    if ($prop->isPrivate()) $mods .= '-';
-                    if ($prop->isProtected()) $mods .= '#';
-                    if (!$prop->isPublic()) $prop->setAccessible(true);
-                    $arr["$mods$name"] = $prop->getValue($obj);
-                }
-            }
-        } else {
-            foreach ((array)$obj as $name => $val) {
+
+        foreach ((array)$obj as $name => $val) {
+            if ($ref->hasProperty($name)) {
+                $prop = $ref->getProperty($name);
+                if ($prop->isStatic() && !self::$stat) continue;
+
+                $name = $prop->getName();
+                $mods = $this->getmodstr($prop);
+                $static = $prop->isStatic() ? 'text-decoration:underline;' : '';
+                self::$do_html && $name = "<span style=\"color:darkgreen;$static\">$name</span>";
+                $arr["$mods$name"] = $prop->getValue($obj);
+            } else {
                 self::$do_html && $name = "<span style=\"color:darkgreen\">$name</span>";
-                $arr["+$name"] = $val;
+                $arr["~$name"] = $val;
             }
-            // $arr = (array)unserialize(serialize($obj), ['allowed_classes' => false]);
-            // unset($arr['__PHP_Incomplete_Class_Name']);
+        }
+
+        if (!self::$meth) return $arr;
+
+        if ($meths = $ref->getMethods()) {
+            foreach ($meths as $meth) {
+                if ($meth->isStatic() && !self::$stat) continue;
+
+                $name = $meth->getName();
+                $mods = $this->getmodstr($meth);
+                $static = $meth->isStatic() ? 'text-decoration:underline;' : '';
+                self::$do_html && $name = "<span style=\"color:darkgreen;$static\">$name</span>";
+                $arr["$mods$name"] = function() use($meth) { return $meth; };
+            }
         }
 
         return $arr;
+    }
+
+    private function getmodstr(&$thing)
+    {
+        $mods = '';
+        $thing->isPublic() && $mods .= '+';
+        $thing->isPrivate() && $mods .= '-';
+        $thing->isProtected() && $mods .= '#';
+        !$thing->isDefault() && $mods .= '~';
+        !$thing->isPublic() && $thing->setAccessible(true);
+
+        return $mods;
     }
 
 
@@ -212,9 +272,13 @@ final class urp
 
 // for lazy debugging of the debug
 function pq() {
-    var_dump(func_get_args());
+    foreach (func_get_args() as $arg) {
+        var_dump($arg);
+    }
 }
 function pqd() {
-    var_dump(func_get_args());
+    foreach (func_get_args() as $arg) {
+        var_dump($arg);
+    }
     die();
 }
