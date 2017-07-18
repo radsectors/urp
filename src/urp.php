@@ -90,7 +90,7 @@ final class urp
     private function digest($thing)
     {
         $typ = gettype($thing);
-        is_callable($thing) && $typ = 'function';
+        !is_string($thing) && is_callable($thing) && $typ = 'function';
         $len = $tag = $hsh = '';
 
         switch($typ) {
@@ -153,7 +153,7 @@ final class urp
                 $tag = " of type ($restyp)";
                 break;
             case 'function':
-                $meth = $thing();
+                $meth = new \ReflectionFunction($thing);
                 self::$do_html && $typ = "<span style=\"color:orange;\">$typ</span>";
                 $len = '';
                 $opts = 0;
