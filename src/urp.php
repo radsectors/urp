@@ -90,7 +90,7 @@ final class urp
     private function digest($thing)
     {
         $typ = gettype($thing);
-        !is_string($thing) && is_callable($thing) && $typ = 'function';
+        !is_string($thing) && !is_array($thing) && is_callable($thing) && $typ = 'function';
         $len = $tag = $hsh = '';
 
         switch($typ) {
@@ -255,7 +255,7 @@ final class urp
 
     private function getmodstr(&$thing)
     {
-        if (!$thing->isDefault()) return '~';
+        if (method_exists($thing, 'isDefault') && !$thing->isDefault()) return '~';
         $mods = '';
         $thing->isPublic() && $mods .= '+';
         $thing->isPrivate() && $mods .= '-';
