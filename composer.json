@@ -21,7 +21,7 @@
   "minimum-stability": "stable",
   "prefer-stable": true,
   "suggest": {
-
+    "php-console/php-console": "Allows debug messages to be sent thru PHP Console"
   },
   "autoload": {
     "psr-4": {
