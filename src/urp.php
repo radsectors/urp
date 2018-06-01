@@ -1,6 +1,7 @@
 <?php
 namespace radsectors;
 
+// phpcs:ignore
 final class urp
 {
     private $lvl = 0;
@@ -84,7 +85,9 @@ final class urp
 
         self::$do_ob && print ob_get_clean();
 
-        if ($limit) ini_set('memory_limit', $limit); // restore memory_limit
+        if ($limit) { // restore memory_limit
+            ini_set('memory_limit', $limit);
+        }
     }
 
     private function digest($thing)
@@ -93,7 +96,7 @@ final class urp
         !is_string($thing) && !is_array($thing) && is_callable($thing) && $typ = 'function';
         $len = $tag = $hsh = '';
 
-        switch($typ) {
+        switch ($typ) {
             case 'object':
                 $cls = get_class($thing);
                 $hsh = spl_object_hash($thing);
@@ -153,11 +156,11 @@ final class urp
                 $tag = " of type ($restyp)";
                 break;
             case 'function':
-                $meth = new \ReflectionFunction($thing);
+                $thing = $thing();
                 self::$do_html && $typ = "<span style=\"color:orange;\">$typ</span>";
                 $len = '';
                 $opts = 0;
-                foreach ($meth->getParameters() as $i => $par) {
+                foreach ($thing->getParameters() as $i => $par) {
                     $par->isOptional() && $opts++;
                     $par->com = $i > 0 ? ',' : '';
                     $par->opl = $par->isOptional() ? " [$par->com " : "$par->com ";
@@ -179,15 +182,18 @@ final class urp
                 }
                 $len .= str_repeat(' ]', $opts).' ';
                 unset($par);
-                $meth->hasReturnType() && $tag = ' : '.$meth->getReturnType();
+                $thing->hasReturnType() && $tag = ' : '.$thing->getReturnType();
                 break;
             case 'unknown type':
                 pq("let @radsectors know if you ever see this", $thing);
+                // no break
             default:
                 break;
         }
 
-        if (strlen($len) > 0) $len = "($len)";
+        if (strlen($len) > 0) {
+            $len = "($len)";
+        }
 
         print "$typ$len$tag";
         if (is_array($thing)) {
@@ -196,7 +202,7 @@ final class urp
             $pad = str_repeat(' ', $this->lvl * 2);
             $this->lvl++;
             foreach ($thing as $name => $t) {
-                !self::$do_html && is_numeric($name) && is_string() && $name = "'$name'";
+                !self::$do_html && is_numeric($name) && is_string($name) && $name = "'$name'";
                 if (self::$do_html && strpos($typ, 'array') !== false) {
                     $color = is_string($name) ? 'darkgreen' : 'red';
                     $name = "<span style=\"color:$color;\">$name</span>";
@@ -206,11 +212,15 @@ final class urp
             }
             print "$pad}";
             $this->lvl--;
-            if (isset($this->arr[$hsh])) unset($this->arr[$hsh]);
+            if (isset($this->arr[$hsh])) {
+                unset($this->arr[$hsh]);
+            }
         }
         print "\n";
 
-        if (isset($this->obj[$hsh])) unset($this->obj[$hsh]);
+        if (isset($this->obj[$hsh])) {
+            unset($this->obj[$hsh]);
+        }
     }
 
     private function invade($obj)
@@ -219,7 +229,9 @@ final class urp
         $ref = new \ReflectionObject($obj);
         if ($props = $ref->getProperties()) {
             foreach ($props as $prop) {
-                if ($prop->isStatic() && !self::$stat) continue;
+                if ($prop->isStatic() && !self::$stat) {
+                    continue;
+                }
 
                 $name = $prop->getName();
                 $mods = $this->getmodstr($prop);
@@ -229,24 +241,28 @@ final class urp
             }
         } else {
             $props = (array)$obj;
-            if (!empty($props)) pq("let @radsectors know if you ever see this", $thing);
+            if (!empty($props)) {
+                pq("let @radsectors know if you ever see this", $thing);
+            }
             foreach ($props as $name => $val) {
                 self::$do_html && $name = "<span style=\"color:darkgreen\">$name</span>";
                 $arr["+$name"] = $val;
             }
         }
 
-        if (!self::$meth) return $arr;
-
-        if ($meths = $ref->getMethods()) {
+        if (self::$meth && $meths = $ref->getMethods()) {
             foreach ($meths as $meth) {
-                if ($meth->isStatic() && !self::$stat) continue;
+                if ($meth->isStatic() && !self::$stat) {
+                    continue;
+                }
 
                 $name = $meth->getName();
                 $mods = $this->getmodstr($meth);
                 $static = $meth->isStatic() ? 'text-decoration:underline;' : '';
                 self::$do_html && $name = "<span style=\"color:darkgreen;$static\">$name</span>";
-                $arr["$mods$name"] = function() use($meth) { return $meth; };
+                $arr["$mods$name"] = function () use ($meth) {
+                    return $meth;
+                };
             }
         }
 
@@ -255,7 +271,9 @@ final class urp
 
     private function getmodstr(&$thing)
     {
-        if (method_exists($thing, 'isDefault') && !$thing->isDefault()) return '~';
+        if (method_exists($thing, 'isDefault') && !$thing->isDefault()) {
+            return '~';
+        }
         $mods = '';
         $thing->isPublic() && $mods .= '+';
         $thing->isPrivate() && $mods .= '-';
@@ -268,17 +286,19 @@ final class urp
 
     public static function filter($str, $filters)
     {
-
+        // nothing
     }
 }
 
 // for lazy debugging of the debug
-function pq() {
+function pq()
+{
     foreach (func_get_args() as $arg) {
         var_dump($arg);
     }
 }
-function pqd() {
+function pqd()
+{
     foreach (func_get_args() as $arg) {
         var_dump($arg);
     }
